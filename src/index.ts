@@ -580,7 +580,7 @@ async function swapFromBTCStarknet(btcWallet: IBitcoinWallet, dstToken: SCToken<
     // //Make sure the second input's sequence (index 1) is as specified in the in1sequence variable
     // psbt.updateInput(1, {sequence: in1sequence});
     // //Sign the PSBT, sign every input except the first one
-    // for(let i=1;i<psbt.inputsLength; i++) psbt.sign(); //Or pass it to external signer
+    // for(let i=1;i<psbt.inputsLength; i++) psbt.signIdx(..., i); //Or pass it to external signer
     // //Submit the signed PSBT
     // const bitcoinTxId = await swap.submitPsbt(psbt);
 
