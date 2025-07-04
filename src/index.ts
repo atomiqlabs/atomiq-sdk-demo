@@ -24,7 +24,7 @@ const Tokens = Factory.Tokens;
 
 //Initialize RPC connections for Solana & Starknet
 const solanaRpc = new Connection("https://api.devnet.solana.com", "confirmed");
-const starknetRpc = new RpcProviderWithRetries({nodeUrl: "https://starknet-sepolia.public.blastapi.io/rpc/v0_7"});
+const starknetRpc = new RpcProviderWithRetries({nodeUrl: "https://starknet-sepolia.public.blastapi.io/rpc/v0_8"});
 
 //Create swapper instance
 const swapper = Factory.newSwapper({
