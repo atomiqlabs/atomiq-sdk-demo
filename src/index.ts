@@ -17,14 +17,18 @@ import {SolanaInitializer, SolanaInitializerType, SolanaKeypairWallet, SolanaSig
 import {Connection, Keypair} from "@solana/web3.js";
 import {SqliteStorageManager, SqliteUnifiedStorage} from "@atomiqlabs/storage-sqlite";
 import * as fs from "fs";
+import {BaseWallet, JsonRpcProvider, SigningKey, Wallet} from "ethers";
+import {CitreaInitializer, CitreaInitializerType, EVMSigner} from "@atomiqlabs/chain-evm";
+import {askQuestion} from "./askQuestion";
 
 //Create swapper factory, you can initialize it also with just a single chain (no need to always use both Solana & Starknet)
-const Factory = new SwapperFactory<[StarknetInitializerType, SolanaInitializerType]>([StarknetInitializer, SolanaInitializer]);
+const Factory = new SwapperFactory<[StarknetInitializerType, SolanaInitializerType, CitreaInitializerType]>([StarknetInitializer, SolanaInitializer, CitreaInitializer]);
 const Tokens = Factory.Tokens;
 
 //Initialize RPC connections for Solana & Starknet
 const solanaRpc = new Connection("https://api.devnet.solana.com", "confirmed");
 const starknetRpc = new RpcProviderWithRetries({nodeUrl: "https://starknet-sepolia.public.blastapi.io/rpc/v0_8"});
+const citreaRpc = new JsonRpcProvider("https://rpc.testnet.citrea.xyz");
 
 //Create swapper instance
 const swapper = Factory.newSwapper({
@@ -34,9 +38,12 @@ const swapper = Factory.newSwapper({
         },
         STARKNET: {
             rpcUrl: starknetRpc
+        },
+        CITREA: {
+            rpcUrl: citreaRpc
         }
     },
-    bitcoinNetwork: BitcoinNetwork.TESTNET,
+    bitcoinNetwork: BitcoinNetwork.TESTNET4,
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS, these lines are not required in browser environment
     swapStorage: chainId => new SqliteUnifiedStorage("CHAIN_"+chainId+".sqlite3"),
@@ -67,6 +74,12 @@ const starknetKey = fs.existsSync("starknet.key") ? fs.readFileSync("starknet.ke
 const starknetSigner = new StarknetSigner(new StarknetKeypairWallet(starknetRpc, starknetKey));
 fs.writeFileSync("starknet.key", starknetKey);
 console.log("Starknet wallet address (transfer STRK here for TX fees): "+starknetSigner.getAddress());
+
+const citreaKey = fs.existsSync("citrea.key") ? fs.readFileSync("citrea.key").toString() : Wallet.createRandom().privateKey;
+const citreaWallet = new BaseWallet(new SigningKey(citreaKey));
+const citreaSigner = new EVMSigner(citreaWallet, citreaWallet.address);
+fs.writeFileSync("citrea.key", citreaKey);
+console.log("Citrea wallet address (transfer CBTC here for TX fees): "+citreaSigner.getAddress());
 
 const bitcoinKey = fs.existsSync("bitcoin.key") ? fs.readFileSync("bitcoin.key").toString() : SingleAddressBitcoinWallet.generateRandomPrivateKey();
 const bitcoinSigner = new SingleAddressBitcoinWallet(swapper.bitcoinRpc, swapper.bitcoinNetwork, bitcoinKey);
@@ -155,6 +168,8 @@ async function swapToBTCLN(signer: AbstractSigner, srcToken: SCToken<any>, light
         console.log("Swap state changed: ", ToBTCSwapState[swap.getState()]);
     });
 
+    await askQuestion("Press ENTER to execute the swap...");
+
     //Initiate the swap on the smart-chain side
     await swap.commit(signer);
 
@@ -234,6 +249,8 @@ async function swapToBTCLNViaLNURL(signer: AbstractSigner, srcToken: SCToken<any
         console.log("Swap state changed: ", ToBTCSwapState[swap.getState()]);
     });
 
+    await askQuestion("Press ENTER to execute the swap...");
+
     //Initiate the swap on the smart-chain side
     await swap.commit(signer);
 
@@ -275,7 +292,8 @@ async function swapFromBTCLN(signer: AbstractSigner, dstToken: SCToken<any>) {
         1000n, //1000 sats (0.00001 BTC)
         true, //Whether we define an input or output amount
         undefined, //Source address for the swap, not used for swaps from BTC-LN
-        signer.getAddress() //Destination address
+        signer.getAddress(), //Destination address
+        {unsafeSkipLnNodeCheck: true} //Necessary for testnet4 lightning swaps, since mempool.space doesn't have a testnet4 lightning api
     );
 
     //Relevant data about the created swap
@@ -365,6 +383,8 @@ async function swapFromBTCLNViaLNURL(signer: AbstractSigner, dstToken: SCToken<a
         console.log("Swap state changed: ", FromBTCLNSwapState[swap.getState()]);
     });
 
+    await askQuestion("Press ENTER to execute the swap...");
+
     //Request the lightning network payout from the LNURL-withdraw service and wait for the payment to be received
     const success = await swap.waitForPayment();
     if(!success) {
@@ -427,6 +447,8 @@ async function swapToBTC(signer: AbstractSigner, srcToken: SCToken<any>, address
         console.log("Swap state changed: ", ToBTCSwapState[swap.getState()]);
     });
 
+    await askQuestion("Press ENTER to execute the swap...");
+
     //Initiate the swap on the smart-chain side
     await swap.commit(signer);
 
@@ -485,6 +507,8 @@ async function swapFromBTCSolana(btcWallet: IBitcoinWallet, dstToken: SCToken<"S
         console.log("Swap state changed: ", FromBTCSwapState[swap.getState()]);
     });
 
+    await askQuestion("Press ENTER to execute the swap...");
+
     //Initiate the swap on the destination chain (Solana) by opening up the bitcoin swap address
     console.log("Opening swap address...");
     await swap.commit(signer);
@@ -522,8 +546,8 @@ async function swapFromBTCSolana(btcWallet: IBitcoinWallet, dstToken: SCToken<"S
     }
 }
 
-//Swap of on-chain BTC -> Starknet assets (uses new swap protocol)
-async function swapFromBTCStarknet(btcWallet: IBitcoinWallet, dstToken: SCToken<"STARKNET">, signer: StarknetSigner) {
+//Swap of on-chain BTC -> Starknet/EVM assets (uses new swap protocol)
+async function swapFromBTC(btcWallet: IBitcoinWallet, dstToken: SCToken<"STARKNET" | "CITREA">, signer: StarknetSigner | EVMSigner) {
     //We can retrieve swap limits before we execute the swap,
     // NOTE that only swap limits denominated in BTC are immediately available
     const swapLimits = swapper.getSwapLimits(Tokens.BITCOIN.BTC, dstToken);
@@ -563,6 +587,8 @@ async function swapFromBTCStarknet(btcWallet: IBitcoinWallet, dstToken: SCToken<
     swap.events.on("swapState", (swap) => {
         console.log("Swap state changed: ", SpvFromBTCSwapState[swap.getState()]);
     });
+
+    await askQuestion("Press ENTER to execute the swap...");
 
     //Send the bitcoin transaction
     console.log("Sending bitcoin transaction...");
@@ -648,7 +674,7 @@ async function main() {
     // for(let swap of refundableStarknetSwaps) await swap.refund(starknetSigner);
 
     //Execute the action
-    await swapFromBTCStarknet(bitcoinSigner, Tokens.STARKNET.STRK, starknetSigner);
+    await swapFromBTC(bitcoinSigner, Tokens.CITREA.CBTC, citreaSigner);
 
     //Stops the swapper instance, no more swaps can happen
     await swapper.stop();
