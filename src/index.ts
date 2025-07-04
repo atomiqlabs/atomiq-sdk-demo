@@ -19,7 +19,7 @@ import {SqliteStorageManager, SqliteUnifiedStorage} from "@atomiqlabs/storage-sq
 import * as fs from "fs";
 
 //Create swapper factory, you can initialize it also with just a single chain (no need to always use both Solana & Starknet)
-const Factory = new SwapperFactory<[StarknetInitializerType, SolanaInitializerType]>([StarknetInitializer, SolanaInitializer]);
+const Factory = new SwapperFactory<[StarknetInitializerType]>([StarknetInitializer]);
 const Tokens = Factory.Tokens;
 
 //Initialize RPC connections for Solana & Starknet
@@ -29,14 +29,14 @@ const starknetRpc = new RpcProviderWithRetries({nodeUrl: "https://starknet-sepol
 //Create swapper instance
 const swapper = Factory.newSwapper({
     chains: {
-        SOLANA: {
-            rpcUrl: solanaRpc
-        },
+        // SOLANA: {
+        //     rpcUrl: solanaRpc
+        // },
         STARKNET: {
             rpcUrl: starknetRpc
         }
     },
-    bitcoinNetwork: BitcoinNetwork.TESTNET,
+    bitcoinNetwork: BitcoinNetwork.TESTNET4,
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS, these lines are not required in browser environment
     swapStorage: chainId => new SqliteUnifiedStorage("CHAIN_"+chainId+".sqlite3"),
@@ -58,10 +58,10 @@ const swapper = Factory.newSwapper({
 });
 
 //Create random signers or load them from files if already generated
-const solanaKey = fs.existsSync("solana.key") ? fs.readFileSync("solana.key") : Keypair.generate().secretKey;
-const solanaSigner = new SolanaSigner(new SolanaKeypairWallet(Keypair.fromSecretKey(solanaKey)), Keypair.fromSecretKey(solanaKey));
-fs.writeFileSync("solana.key", solanaKey);
-console.log("Solana wallet address (transfer SOL here for TX fees): "+solanaSigner.getAddress());
+// const solanaKey = fs.existsSync("solana.key") ? fs.readFileSync("solana.key") : Keypair.generate().secretKey;
+// const solanaSigner = new SolanaSigner(new SolanaKeypairWallet(Keypair.fromSecretKey(solanaKey)), Keypair.fromSecretKey(solanaKey));
+// fs.writeFileSync("solana.key", solanaKey);
+// console.log("Solana wallet address (transfer SOL here for TX fees): "+solanaSigner.getAddress());
 
 const starknetKey = fs.existsSync("starknet.key") ? fs.readFileSync("starknet.key").toString() : StarknetKeypairWallet.generateRandomPrivateKey();
 const starknetSigner = new StarknetSigner(new StarknetKeypairWallet(starknetRpc, starknetKey));
@@ -445,82 +445,82 @@ async function swapToBTC(signer: AbstractSigner, srcToken: SCToken<any>, address
 }
 
 //Swap of on-chain BTC -> Solana assets (uses old swap protocol)
-async function swapFromBTCSolana(btcWallet: IBitcoinWallet, dstToken: SCToken<"SOLANA">, signer: SolanaSigner) {
-    //We can retrieve swap limits before we execute the swap,
-    // NOTE that only swap limits denominated in BTC are immediately available
-    const swapLimits = swapper.getSwapLimits(Tokens.BITCOIN.BTC, dstToken);
-    console.log("Swap limits, input min: "+swapLimits.input.min+" input max: "+swapLimits.input.max); //Immediately available
-    console.log("Swap limits, output min: "+swapLimits.output.min+" output max: "+swapLimits.output.max); //Available after swap rejected due to too high/low amounts
-
-    //Create swap quote
-    const swap = await swapper.swap(
-        Tokens.BITCOIN.BTC, //Swap from BTC
-        dstToken, //Into specified destination token
-        2000n, //1000 sats (0.00001 BTC)
-        true, //Whether we define an input or output amount
-        undefined, //Source address for the swap, not used for swaps from BTC
-        signer.getAddress() //Destination address
-    );
-
-    //Relevant data about the created swap
-    console.log("Swap created "+swap.getId()+":");
-    console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
-    console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
-    for(let fee of swap.getFeeBreakdown()) {
-        console.log("       - "+FeeType[fee.type]+": "+fee.fee.amountInSrcToken);
-    }
-    console.log("   Input with fees: "+swap.getInput()); //Total amount paid including fees
-    console.log("   Output: "+swap.getOutput()); //Output amount
-    console.log("   Quote expiry: "+swap.getQuoteExpiry()+" (in "+(swap.getQuoteExpiry()-Date.now())/1000+" seconds)"); //Quote expiration
-    console.log("   Bitcoin swap address expiry: "+swap.getTimeoutTime()+" (in "+(swap.getTimeoutTime()-Date.now())/1000+" seconds)"); //Expiration of the opened up bitcoin swap address, no funds should be sent after this time!
-    console.log("   Price:"); //Pricing information
-    console.log("       - swap: "+swap.getPriceInfo().swapPrice); //Price of the current swap (excluding fees)
-    console.log("       - market: "+swap.getPriceInfo().marketPrice); //Current market price
-    console.log("       - difference: "+swap.getPriceInfo().difference); //Difference between the swap price & current market price
-    console.log("   Refundable deposit: "+swap.getSecurityDeposit()); //Refundable deposit on the destination chain, this will be taken when user creates the swap and refunded when user finishes it
-    console.log("   Watchtower fee: "+swap.getClaimerBounty()); //Fee pre-funded on the destination chain, this will be used as a fee for watchtower to automatically claim the swap on the destination on behalf of the user
-
-    //Add a listener for swap state changes (optional)
-    swap.events.on("swapState", (swap) => {
-        console.log("Swap state changed: ", FromBTCSwapState[swap.getState()]);
-    });
-
-    //Initiate the swap on the destination chain (Solana) by opening up the bitcoin swap address
-    console.log("Opening swap address...");
-    await swap.commit(signer);
-    console.log("Swap address opened!");
-
-    //Send the bitcoin transaction after swap address is opened
-    console.log("Sending bitcoin transaction...");
-    const bitcoinTxId = await swap.sendBitcoinTransaction(btcWallet);
-    console.log("Bitcoin transaction sent: "+bitcoinTxId);
-
-    //Or obtain the funded PSBT (input already added) - ready for signing
-    // const {psbt, signInputs} = await swap.getFundedPsbt({address: "", publicKey: ""});
-    // for(let signIdx of signInputs) {
-    //     psbt.signIdx(..., signIdx); //Or pass it to external signer
-    // }
-    // const bitcoinTxId = await swap.submitPsbt(psbt);
-
-    //Wait for the bitcoin on-chain transaction to confirm
-    await swap.waitForBitcoinTransaction(
-        undefined, 5,
-        (txId, confirmations, targetConfirmations, txEtaMs) => {
-            if(txId==null) return;
-            console.log("Swap transaction "+txId+" ("+confirmations+"/"+targetConfirmations+") ETA: "+(txEtaMs/1000)+"s");
-        }
-    );
-
-    console.log("Bitcoin transaction "+bitcoinTxId+" confirmed! Waiting for automatic claim by the watchtowers...");
-    try {
-        await swap.waitTillClaimed(AbortSignal.timeout(30*1000));
-        console.log("Successfully claimed by the watchtower!");
-    } catch (e) {
-        console.log("Swap not claimed by watchtowers, claiming manually!");
-        await swap.claim(signer);
-        console.log("Successfully claimed!");
-    }
-}
+// async function swapFromBTCSolana(btcWallet: IBitcoinWallet, dstToken: SCToken<"SOLANA">, signer: SolanaSigner) {
+//     //We can retrieve swap limits before we execute the swap,
+//     // NOTE that only swap limits denominated in BTC are immediately available
+//     const swapLimits = swapper.getSwapLimits(Tokens.BITCOIN.BTC, dstToken);
+//     console.log("Swap limits, input min: "+swapLimits.input.min+" input max: "+swapLimits.input.max); //Immediately available
+//     console.log("Swap limits, output min: "+swapLimits.output.min+" output max: "+swapLimits.output.max); //Available after swap rejected due to too high/low amounts
+//
+//     //Create swap quote
+//     const swap = await swapper.swap(
+//         Tokens.BITCOIN.BTC, //Swap from BTC
+//         dstToken, //Into specified destination token
+//         2000n, //1000 sats (0.00001 BTC)
+//         true, //Whether we define an input or output amount
+//         undefined, //Source address for the swap, not used for swaps from BTC
+//         signer.getAddress() //Destination address
+//     );
+//
+//     //Relevant data about the created swap
+//     console.log("Swap created "+swap.getId()+":");
+//     console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
+//     console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
+//     for(let fee of swap.getFeeBreakdown()) {
+//         console.log("       - "+FeeType[fee.type]+": "+fee.fee.amountInSrcToken);
+//     }
+//     console.log("   Input with fees: "+swap.getInput()); //Total amount paid including fees
+//     console.log("   Output: "+swap.getOutput()); //Output amount
+//     console.log("   Quote expiry: "+swap.getQuoteExpiry()+" (in "+(swap.getQuoteExpiry()-Date.now())/1000+" seconds)"); //Quote expiration
+//     console.log("   Bitcoin swap address expiry: "+swap.getTimeoutTime()+" (in "+(swap.getTimeoutTime()-Date.now())/1000+" seconds)"); //Expiration of the opened up bitcoin swap address, no funds should be sent after this time!
+//     console.log("   Price:"); //Pricing information
+//     console.log("       - swap: "+swap.getPriceInfo().swapPrice); //Price of the current swap (excluding fees)
+//     console.log("       - market: "+swap.getPriceInfo().marketPrice); //Current market price
+//     console.log("       - difference: "+swap.getPriceInfo().difference); //Difference between the swap price & current market price
+//     console.log("   Refundable deposit: "+swap.getSecurityDeposit()); //Refundable deposit on the destination chain, this will be taken when user creates the swap and refunded when user finishes it
+//     console.log("   Watchtower fee: "+swap.getClaimerBounty()); //Fee pre-funded on the destination chain, this will be used as a fee for watchtower to automatically claim the swap on the destination on behalf of the user
+//
+//     //Add a listener for swap state changes (optional)
+//     swap.events.on("swapState", (swap) => {
+//         console.log("Swap state changed: ", FromBTCSwapState[swap.getState()]);
+//     });
+//
+//     //Initiate the swap on the destination chain (Solana) by opening up the bitcoin swap address
+//     console.log("Opening swap address...");
+//     await swap.commit(signer);
+//     console.log("Swap address opened!");
+//
+//     //Send the bitcoin transaction after swap address is opened
+//     console.log("Sending bitcoin transaction...");
+//     const bitcoinTxId = await swap.sendBitcoinTransaction(btcWallet);
+//     console.log("Bitcoin transaction sent: "+bitcoinTxId);
+//
+//     //Or obtain the funded PSBT (input already added) - ready for signing
+//     // const {psbt, signInputs} = await swap.getFundedPsbt({address: "", publicKey: ""});
+//     // for(let signIdx of signInputs) {
+//     //     psbt.signIdx(..., signIdx); //Or pass it to external signer
+//     // }
+//     // const bitcoinTxId = await swap.submitPsbt(psbt);
+//
+//     //Wait for the bitcoin on-chain transaction to confirm
+//     await swap.waitForBitcoinTransaction(
+//         undefined, 5,
+//         (txId, confirmations, targetConfirmations, txEtaMs) => {
+//             if(txId==null) return;
+//             console.log("Swap transaction "+txId+" ("+confirmations+"/"+targetConfirmations+") ETA: "+(txEtaMs/1000)+"s");
+//         }
+//     );
+//
+//     console.log("Bitcoin transaction "+bitcoinTxId+" confirmed! Waiting for automatic claim by the watchtowers...");
+//     try {
+//         await swap.waitTillClaimed(AbortSignal.timeout(30*1000));
+//         console.log("Successfully claimed by the watchtower!");
+//     } catch (e) {
+//         console.log("Swap not claimed by watchtowers, claiming manually!");
+//         await swap.claim(signer);
+//         console.log("Successfully claimed!");
+//     }
+// }
 
 //Swap of on-chain BTC -> Starknet assets (uses new swap protocol)
 async function swapFromBTCStarknet(btcWallet: IBitcoinWallet, dstToken: SCToken<"STARKNET">, signer: StarknetSigner) {
@@ -575,7 +575,7 @@ async function swapFromBTCStarknet(btcWallet: IBitcoinWallet, dstToken: SCToken<
     // const bitcoinTxId = await swap.submitPsbt(psbt);
 
     //Or obtain raw PSBT to which inputs still need to be added
-    const {psbt, in1sequence} = await swap.getPsbt();
+    // const {psbt, in1sequence} = await swap.getPsbt();
     // psbt.addInput(...);
     // //Make sure the second input's sequence (index 1) is as specified in the in1sequence variable
     // psbt.updateInput(1, {sequence: in1sequence});
