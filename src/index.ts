@@ -21,6 +21,8 @@ import {BaseWallet, JsonRpcProvider, SigningKey, Wallet} from "ethers";
 import {CitreaInitializer, CitreaInitializerType, EVMSigner} from "@atomiqlabs/chain-evm";
 import {askQuestion} from "./askQuestion";
 
+global.atomiqLogLevel = 3;
+
 //Create swapper factory, you can initialize it also with just a single chain (no need to always use both Solana & Starknet)
 const Factory = new SwapperFactory<[StarknetInitializerType, SolanaInitializerType, CitreaInitializerType]>([StarknetInitializer, SolanaInitializer, CitreaInitializer]);
 const Tokens = Factory.Tokens;
@@ -148,6 +150,7 @@ async function swapToBTCLN(signer: AbstractSigner, srcToken: SCToken<any>, light
 
     //Relevant data about the created swap
     console.log("Swap created "+swap.getId()+":");
+    console.log("   Estimated transaction fee: "+await swap.getSmartChainNetworkFee()); //Estimate of the on-chain gas fee paid
     console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
     console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
     for(let fee of swap.getFeeBreakdown()) {
@@ -229,6 +232,7 @@ async function swapToBTCLNViaLNURL(signer: AbstractSigner, srcToken: SCToken<any
 
     //Relevant data about the created swap
     console.log("Swap created "+swap.getId()+":");
+    console.log("   Estimated transaction fee: "+await swap.getSmartChainNetworkFee()); //Estimate of the on-chain gas fee paid
     console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
     console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
     for(let fee of swap.getFeeBreakdown()) {
@@ -298,6 +302,7 @@ async function swapFromBTCLN(signer: AbstractSigner, dstToken: SCToken<any>) {
 
     //Relevant data about the created swap
     console.log("Swap created "+swap.getId()+":");
+    console.log("   Estimated transaction fee: "+await swap.getSmartChainNetworkFee()); //Estimate of the on-chain gas fee paid
     console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
     console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
     for(let fee of swap.getFeeBreakdown()) {
@@ -364,6 +369,7 @@ async function swapFromBTCLNViaLNURL(signer: AbstractSigner, dstToken: SCToken<a
 
     //Relevant data about the created swap
     console.log("Swap created "+swap.getId()+":");
+    console.log("   Estimated transaction fee: "+await swap.getSmartChainNetworkFee()); //Estimate of the on-chain gas fee paid
     console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
     console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
     for(let fee of swap.getFeeBreakdown()) {
@@ -428,6 +434,7 @@ async function swapToBTC(signer: AbstractSigner, srcToken: SCToken<any>, address
 
     //Relevant data about the created swap
     console.log("Swap created "+swap.getId()+":");
+    console.log("   Estimated transaction fee: "+await swap.getSmartChainNetworkFee()); //Estimate of the on-chain gas fee paid
     console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
     console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
     for(let fee of swap.getFeeBreakdown()) {
@@ -486,6 +493,7 @@ async function swapFromBTCSolana(btcWallet: IBitcoinWallet, dstToken: SCToken<"S
 
     //Relevant data about the created swap
     console.log("Swap created "+swap.getId()+":");
+    console.log("   Estimated transaction fee: "+await swap.getSmartChainNetworkFee()); //Estimate of the on-chain gas fee paid
     console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
     console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
     for(let fee of swap.getFeeBreakdown()) {
@@ -547,7 +555,7 @@ async function swapFromBTCSolana(btcWallet: IBitcoinWallet, dstToken: SCToken<"S
 }
 
 //Swap of on-chain BTC -> Starknet/EVM assets (uses new swap protocol)
-async function swapFromBTC(btcWallet: IBitcoinWallet, dstToken: SCToken<"STARKNET" | "CITREA">, signer: StarknetSigner | EVMSigner) {
+async function swapFromBTC(btcWallet: IBitcoinWallet, dstToken: SCToken<"STARKNET" | "CITREA">, signer: StarknetSigner | EVMSigner, gasDropAmount: bigint = 0n) {
     //We can retrieve swap limits before we execute the swap,
     // NOTE that only swap limits denominated in BTC are immediately available
     const swapLimits = swapper.getSwapLimits(Tokens.BITCOIN.BTC, dstToken);
@@ -562,9 +570,9 @@ async function swapFromBTC(btcWallet: IBitcoinWallet, dstToken: SCToken<"STARKNE
         true, //Whether we define an input or output amount
         undefined, //Source address for the swap, not used for swaps from BTC
         signer.getAddress(), //Destination address
-        // {
-        //     gasAmount: 1_000_000_000_000_000_000n //We can also request a gas drop on the destination chain (here requesting 1 STRK)
-        // }
+        {
+            gasAmount: gasDropAmount //We can also request a gas drop on the destination chain
+        }
     );
 
     //Relevant data about the created swap
@@ -576,6 +584,7 @@ async function swapFromBTC(btcWallet: IBitcoinWallet, dstToken: SCToken<"STARKNE
     }
     console.log("   Input with fees: "+swap.getInput()); //Total amount paid including fees
     console.log("   Output: "+swap.getOutput()); //Output amount
+    console.log("   Gas drop output: "+swap.getGasDropOutput()); //Output amount
     console.log("   Quote expiry: "+swap.getQuoteExpiry()+" (in "+(swap.getQuoteExpiry()-Date.now())/1000+" seconds)"); //Quote expiration
     console.log("   Price:"); //Pricing information
     console.log("       - swap: "+swap.getPriceInfo().swapPrice); //Price of the current swap (excluding fees)
