@@ -9,9 +9,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@atomiqlabs/chain-evm": "^1.0.0-dev.22",
-    "@atomiqlabs/chain-solana": "^10.0.0-dev.2",
-    "@atomiqlabs/chain-starknet": "^4.0.0-dev.2",
+    "@atomiqlabs/chain-evm": "^1.0.0-dev.30",
+    "@atomiqlabs/chain-solana": "^10.0.0-dev.3",
+    "@atomiqlabs/chain-starknet": "^4.0.0-dev.3",
     "@atomiqlabs/sdk": "^5.0.0-dev.0",
     "@atomiqlabs/storage-sqlite": "^2.0.0-dev.0",
     "@coral-xyz/anchor": "^0.29.0",
