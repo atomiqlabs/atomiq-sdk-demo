@@ -1,7 +1,9 @@
+import * as WebSocket from 'ws';
+
 import {
     AbstractSigner,
     BitcoinNetwork,
-    FeeType,
+    FeeType, FromBTCLNAutoSwapState,
     FromBTCLNSwapState, FromBTCSwapState, IBitcoinWallet, isLNURLPay, isLNURLWithdraw, LNURLPay, LNURLWithdraw,
     SCToken, SingleAddressBitcoinWallet, SpvFromBTCSwapState,
     SwapperFactory,
@@ -20,6 +22,7 @@ import * as fs from "fs";
 import {BaseWallet, JsonRpcProvider, SigningKey, Wallet} from "ethers";
 import {CitreaInitializer, CitreaInitializerType, EVMSigner} from "@atomiqlabs/chain-evm";
 import {askQuestion} from "./askQuestion";
+import {NostrMessenger} from "@atomiqlabs/messenger-nostr";
 
 global.atomiqLogLevel = 3;
 
@@ -46,6 +49,9 @@ const swapper = Factory.newSwapper({
         }
     },
     bitcoinNetwork: BitcoinNetwork.TESTNET4,
+    messenger: new NostrMessenger(["wss://relay.damus.io", "wss://nostr.einundzwanzig.space", "wss://nostr.mutinywallet.com"], {
+        wsImplementation: WebSocket as any
+    }),
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS, these lines are not required in browser environment
     swapStorage: chainId => new SqliteUnifiedStorage("CHAIN_"+chainId+".sqlite3"),
@@ -281,8 +287,8 @@ async function swapToBTCLNViaLNURL(signer: AbstractSigner, srcToken: SCToken<any
     console.log("Successfully swapped to LN, payment proof: "+swap.getSecret());
 }
 
-//Swap from bitcoin lightning network L2 to smart chain assets (Solana, Starknet, etc.), requires manual outside payment of the displayed lightning network invoice
-async function swapFromBTCLN(signer: AbstractSigner, dstToken: SCToken<any>) {
+//Swap from bitcoin lightning network L2 to solana assets, requires manual outside payment of the displayed lightning network invoice
+async function swapFromBTCLNSolana(signer: SolanaSigner, dstToken: SCToken<"SOLANA">) {
     //We can retrieve swap limits before we execute the swap,
     // NOTE that only swap limits denominated in BTC are immediately available
     const swapLimits = swapper.getSwapLimits(Tokens.BITCOIN.BTCLN, dstToken);
@@ -349,8 +355,73 @@ async function swapFromBTCLN(signer: AbstractSigner, dstToken: SCToken<any>) {
     }
 }
 
+//Swap from bitcoin lightning network L2 to solana assets, requires manual outside payment of the displayed lightning network invoice
+async function swapFromBTCLN(signer: StarknetSigner | EVMSigner, dstToken: SCToken<"STARKNET" | "CITREA">, gasDropAmount: bigint = 0n) {
+    //We can retrieve swap limits before we execute the swap,
+    // NOTE that only swap limits denominated in BTC are immediately available
+    const swapLimits = swapper.getSwapLimits(Tokens.BITCOIN.BTCLN, dstToken);
+    console.log("Swap limits, input min: "+swapLimits.input.min+" input max: "+swapLimits.input.max); //Immediately available
+    console.log("Swap limits, output min: "+swapLimits.output.min+" output max: "+swapLimits.output.max); //Available after swap rejected due to too high/low amounts
+
+    //Create swap quote
+    const swap = await swapper.swap(
+        Tokens.BITCOIN.BTCLN, //Swap from BTC-LN
+        dstToken, //Into specified destination token
+        3000n, //1000 sats (0.00001 BTC)
+        true, //Whether we define an input or output amount
+        undefined, //Source address for the swap, not used for swaps from BTC-LN
+        signer.getAddress(), //Destination address
+        {
+            unsafeSkipLnNodeCheck: true, //Necessary for testnet4 lightning swaps, since mempool.space doesn't have a testnet4 lightning api
+            gasAmount: gasDropAmount
+        }
+    );
+
+    //Relevant data about the created swap
+    console.log("Swap created "+swap.getId()+":");
+    console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
+    console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
+    for(let fee of swap.getFeeBreakdown()) {
+        console.log("       - "+FeeType[fee.type]+": "+fee.fee.amountInSrcToken);
+    }
+    console.log("   Input with fees: "+swap.getInput()); //Total amount paid including fees
+    console.log("   Output: "+swap.getOutput()); //Output amount
+    console.log("   Gas drop output: "+swap.getGasDropOutput()); //Output amount
+    console.log("   Quote expiry: "+swap.getQuoteExpiry()+" (in "+(swap.getQuoteExpiry()-Date.now())/1000+" seconds)"); //Quote expiration
+    console.log("   Price:"); //Pricing information
+    console.log("       - swap: "+swap.getPriceInfo().swapPrice); //Price of the current swap (excluding fees)
+    console.log("       - market: "+swap.getPriceInfo().marketPrice); //Current market price
+    console.log("       - difference: "+swap.getPriceInfo().difference); //Difference between the swap price & current market price
+    console.log("   Address: "+swap.getAddress()); //Address/lightning network invoice to pay
+    console.log("   Hyperlink: "+swap.getHyperlink()); //Hyperlink representation of the address/lightning network invoice
+
+    console.log("Waiting for the manual payment of the lightning network invoice (pay it from your lightning network wallet)...");
+
+    //Add a listener for swap state changes (optional)
+    swap.events.on("swapState", (swap) => {
+        console.log("Swap state changed: ", FromBTCLNAutoSwapState[swap.getState()]);
+    });
+
+    //Start listening to incoming lightning network payment
+    const success = await swap.waitForPayment();
+    if(!success) {
+        console.log("Lightning network payment not received in time and quote expired!");
+        return;
+    }
+
+    console.log("Lightning payment received and HTLC offered! Waiting for automatic claim by the watchtowers...");
+    try {
+        await swap.waitTillClaimed(AbortSignal.timeout(30*1000));
+        console.log("Successfully claimed by the watchtower!");
+    } catch (e) {
+        console.log("Swap not claimed by watchtowers, claiming manually!");
+        await swap.claim(signer);
+        console.log("Successfully claimed!");
+    }
+}
+
 //Swap from bitcoin lightning network L2 to smart chain assets (Solana, Starknet, etc.) using LNURL-withdraw withdrawal link
-async function swapFromBTCLNViaLNURL(signer: AbstractSigner, dstToken: SCToken<any>, lnurlWithdraw: string | LNURLWithdraw) {
+async function swapFromBTCLNViaLNURLSolana(signer: SolanaSigner, dstToken: SCToken<"SOLANA">, lnurlWithdraw: string | LNURLWithdraw) {
     //We can retrieve swap limits before we execute the swap,
     // NOTE that only swap limits denominated in BTC are immediately available
     const swapLimits = swapper.getSwapLimits(Tokens.BITCOIN.BTCLN, dstToken);
@@ -683,7 +754,7 @@ async function main() {
     // for(let swap of refundableStarknetSwaps) await swap.refund(starknetSigner);
 
     //Execute the action
-    await swapFromBTC(bitcoinSigner, Tokens.CITREA.CBTC, citreaSigner);
+    await swapFromBTCLN(citreaSigner, Tokens.CITREA.USDC, 3_000_000_000_000n);
 
     //Stops the swapper instance, no more swaps can happen
     await swapper.stop();
