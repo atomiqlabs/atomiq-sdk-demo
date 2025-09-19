@@ -36,7 +36,7 @@ const swapper = Factory.newSwapper({
             rpcUrl: starknetRpc
         }
     },
-    bitcoinNetwork: BitcoinNetwork.TESTNET,
+    bitcoinNetwork: BitcoinNetwork.TESTNET4,
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS, these lines are not required in browser environment
     swapStorage: chainId => new SqliteUnifiedStorage("CHAIN_"+chainId+".sqlite3"),
@@ -538,9 +538,9 @@ async function swapFromBTCStarknet(btcWallet: IBitcoinWallet, dstToken: SCToken<
         true, //Whether we define an input or output amount
         undefined, //Source address for the swap, not used for swaps from BTC
         signer.getAddress(), //Destination address
-        // {
-        //     gasAmount: 1_000_000_000_000_000_000n //We can also request a gas drop on the destination chain (here requesting 1 STRK)
-        // }
+        {
+            // gasAmount: 1_000_000_000_000_000_000n //We can also request a gas drop on the destination chain (here requesting 1 STRK)
+        }
     );
 
     //Relevant data about the created swap
