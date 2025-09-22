@@ -9,17 +9,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@atomiqlabs/base": "^10.0.0-dev.8",
-    "@atomiqlabs/chain-evm": "^1.0.0-dev.35",
-    "@atomiqlabs/chain-solana": "^10.0.0-dev.3",
-    "@atomiqlabs/chain-starknet": "^4.0.0-dev.5",
-    "@atomiqlabs/sdk": "^5.0.0-dev.2",
+    "@atomiqlabs/base": "^10.0.0-dev.16",
+    "@atomiqlabs/chain-evm": "^1.0.0-dev.98",
+    "@atomiqlabs/chain-solana": "^10.0.0-dev.9",
+    "@atomiqlabs/chain-starknet": "^4.0.0-dev.36",
+    "@atomiqlabs/sdk": "^5.0.0-dev.6",
     "@atomiqlabs/storage-sqlite": "^2.0.0-dev.0",
     "@coral-xyz/anchor": "^0.29.0",
     "@solana/spl-token": "^0.3.11",
     "@solana/web3.js": "^1.98.2",
     "ethers": "^6.15.0",
-    "starknet": "^7.6.2",
+    "starknet": "^8.5.4",
     "ws": "^8.18.3"
   },
   "devDependencies": {
