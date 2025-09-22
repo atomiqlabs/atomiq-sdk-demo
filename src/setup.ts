@@ -4,9 +4,7 @@ import {SolanaInitializer, SolanaInitializerType} from "@atomiqlabs/chain-solana
 import {CitreaInitializer, CitreaInitializerType} from "@atomiqlabs/chain-evm";
 import {Connection} from "@solana/web3.js";
 import {JsonRpcProvider} from "ethers";
-import {NostrMessenger} from "@atomiqlabs/messenger-nostr";
 import {SqliteStorageManager, SqliteUnifiedStorage} from "@atomiqlabs/storage-sqlite";
-import * as WebSocket from 'ws';
 import {RpcProvider} from "starknet";
 
 //You can bump up the log level with atomiqLogLevel global variable
@@ -36,9 +34,6 @@ const swapper = Factory.newSwapper({
         }
     },
     bitcoinNetwork: BitcoinNetwork.TESTNET4,
-    messenger: new NostrMessenger(BitcoinNetwork.TESTNET4, ["wss://relay.damus.io", "wss://nostr.einundzwanzig.space", "wss://nostr.mutinywallet.com"], {
-        wsImplementation: WebSocket as any
-    }),
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS
     // these lines are not required in browser environment!!!
