@@ -19,8 +19,7 @@
     "@solana/spl-token": "^0.3.11",
     "@solana/web3.js": "^1.98.2",
     "ethers": "^6.15.0",
-    "starknet": "^8.5.4",
-    "ws": "^8.18.3"
+    "starknet": "^8.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.15.18",
