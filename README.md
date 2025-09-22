@@ -16,7 +16,7 @@ Wallets (while not necessarily being part of atomiq itself) are setup in [/src/w
 - general purpose address parsing: [/src/utils/parseAddress.ts](/src/utils/parseAddress.ts)
 - checking and claiming/refunding past swaps: [/src/utils/pastSwaps.ts](/src/utils/pastSwaps.ts)
 - checking supported tokens: [/src/utils/supportedTokens.ts](/src/utils/supportedTokens.ts)
-- swap types and swap features: [/src/utils/swapTypes.ts](/src/utils/supportedTokens.ts)
+- swap types and swap features: [/src/utils/swapTypes.ts](/src/utils/swapTypes.ts)
 - wallet balances getter utilities: [/src/utils/walletHelper.ts](/src/utils/walletHelper.ts)
 
 ## Swaps
