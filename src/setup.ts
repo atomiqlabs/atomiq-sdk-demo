@@ -1,7 +1,12 @@
 import {BitcoinNetwork, SwapperFactory} from "@atomiqlabs/sdk";
 import {StarknetInitializer, StarknetInitializerType} from "@atomiqlabs/chain-starknet";
 import {SolanaInitializer, SolanaInitializerType} from "@atomiqlabs/chain-solana";
-import {CitreaInitializer, CitreaInitializerType} from "@atomiqlabs/chain-evm";
+import {
+    BotanixInitializer,
+    BotanixInitializerType,
+    CitreaInitializer,
+    CitreaInitializerType
+} from "@atomiqlabs/chain-evm";
 import {Connection} from "@solana/web3.js";
 import {JsonRpcProvider} from "ethers";
 import {SqliteStorageManager, SqliteUnifiedStorage} from "@atomiqlabs/storage-sqlite";
@@ -11,13 +16,18 @@ import {RpcProvider} from "starknet";
 // global.atomiqLogLevel = 3;
 
 //Create swapper factory, you can initialize it also with just a single chain (no need to always use both Solana & Starknet)
-const Factory = new SwapperFactory<[StarknetInitializerType, SolanaInitializerType, CitreaInitializerType]>([StarknetInitializer, SolanaInitializer, CitreaInitializer]);
+const Factory = new SwapperFactory<
+    [StarknetInitializerType, SolanaInitializerType, CitreaInitializerType, BotanixInitializerType]
+>(
+    [StarknetInitializer, SolanaInitializer, CitreaInitializer, BotanixInitializer]
+);
 const Tokens = Factory.Tokens;
 
 //Initialize RPC connections for Solana & Starknet
 const solanaRpc = new Connection("https://api.devnet.solana.com", "confirmed");
-const starknetRpc = new RpcProvider({nodeUrl: "https://starknet-sepolia.public.blastapi.io/rpc/v0_9"});
+const starknetRpc = new RpcProvider({nodeUrl: "https://starknet.api.onfinality.io/public/rpc/v0_9'"});
 const citreaRpc = new JsonRpcProvider("https://rpc.testnet.citrea.xyz");
+const botanixRpc = new JsonRpcProvider("https://rpc.botanixlabs.com");
 
 //Create swapper instance
 const swapper = Factory.newSwapper({
@@ -31,9 +41,14 @@ const swapper = Factory.newSwapper({
         CITREA: {
             rpcUrl: citreaRpc,
             chainType: "TESTNET4"
+        },
+        BOTANIX: {
+            rpcUrl: botanixRpc
         }
     },
-    bitcoinNetwork: BitcoinNetwork.TESTNET4,
+    bitcoinNetwork: BitcoinNetwork.MAINNET,
+
+    saveUninitializedSwaps: true,
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS
     // these lines are not required in browser environment!!!
