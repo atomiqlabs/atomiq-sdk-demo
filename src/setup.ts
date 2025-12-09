@@ -16,7 +16,7 @@ const Tokens = Factory.Tokens;
 
 //Initialize RPC connections for Solana & Starknet
 const solanaRpc = new Connection("https://api.devnet.solana.com", "confirmed");
-const starknetRpc = new RpcProvider({nodeUrl: "https://starknet-sepolia.public.blastapi.io/rpc/v0_9"});
+const starknetRpc = new RpcProvider({nodeUrl: "https://api.zan.top/public/starknet-sepolia/rpc/v0_9"});
 const citreaRpc = new JsonRpcProvider("https://rpc.testnet.citrea.xyz");
 
 //Create swapper instance
@@ -33,7 +33,7 @@ const swapper = Factory.newSwapper({
             chainType: "TESTNET4"
         }
     },
-    bitcoinNetwork: BitcoinNetwork.TESTNET4,
+    bitcoinNetwork: BitcoinNetwork.TESTNET,
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS
     // these lines are not required in browser environment!!!
@@ -57,6 +57,7 @@ const swapper = Factory.newSwapper({
 
 //Export the swapper and the available tokens
 export {
+    Factory,
     swapper,
     Tokens,
 

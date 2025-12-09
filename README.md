@@ -71,3 +71,7 @@ Uses the same protocol for all supported chains, hence the flow is the same
 - advanced EVM implementation (manually signing transactions and going through swap steps): [/src/smartchain-to-btcln/swapAdvancedEVM.ts](/src/smartchain-to-btcln/swapAdvancedEVM.ts)
 - advanced Starknet implementation (manually signing transactions and going through swap steps): [/src/smartchain-to-btcln/swapAdvancedStarknet.ts](/src/smartchain-to-btcln/swapAdvancedStarknet.ts)
 - advanced Solana implementation (manually signing transactions and going through swap steps): [/src/smartchain-to-btcln/swapAdvancedSolana.ts](/src/smartchain-to-btcln/swapAdvancedSolana.ts)
+
+### Solana pay
+
+An example of using the atomiq SDK with Solana pay, this allows you to generate a solana pay deeplink with embbeded lightning invoice, that will automatically create a Solana -> BTC-LN swap when scanned, such that user can authorize it in the Solana wallet. Can be found at [/src/solana-pay/quickSwapProxyToBtcLnWithExpress.ts](/src/solana-pay/quickSwapProxyToBtcLnWithExpress.ts)
