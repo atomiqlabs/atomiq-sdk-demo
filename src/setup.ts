@@ -1,4 +1,4 @@
-import {BitcoinNetwork, SwapperFactory} from "@atomiqlabs/sdk";
+import {BitcoinNetwork, SwapperFactory, TypedSwapper, TypedTokens} from "@atomiqlabs/sdk";
 import {StarknetInitializer, StarknetInitializerType} from "@atomiqlabs/chain-starknet";
 import {SolanaInitializer, SolanaInitializerType} from "@atomiqlabs/chain-solana";
 import {CitreaInitializer, CitreaInitializerType} from "@atomiqlabs/chain-evm";
@@ -11,8 +11,11 @@ import {RpcProvider} from "starknet";
 // global.atomiqLogLevel = 3;
 
 //Create swapper factory, you can initialize it also with just a single chain (no need to always use both Solana & Starknet)
-const Factory = new SwapperFactory<[StarknetInitializerType, SolanaInitializerType, CitreaInitializerType]>([StarknetInitializer, SolanaInitializer, CitreaInitializer]);
-const Tokens = Factory.Tokens;
+const chains = [StarknetInitializer, SolanaInitializer, CitreaInitializer] as const;
+type SupportedChains = typeof chains;
+
+const Factory = new SwapperFactory<SupportedChains>(chains);
+const Tokens: TypedTokens<SupportedChains> = Factory.Tokens;
 
 //Initialize RPC connections for Solana & Starknet
 const solanaRpc = new Connection("https://api.devnet.solana.com", "confirmed");
@@ -20,7 +23,7 @@ const starknetRpc = new RpcProvider({nodeUrl: "https://api.zan.top/public/starkn
 const citreaRpc = new JsonRpcProvider("https://rpc.testnet.citrea.xyz");
 
 //Create swapper instance
-const swapper = Factory.newSwapper({
+const swapper: TypedSwapper<SupportedChains> = Factory.newSwapper({
     chains: {
         SOLANA: {
             rpcUrl: solanaRpc
