@@ -9,19 +9,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@atomiqlabs/base": "github:atomiqlabs/atomiq-base#ab/signed-txs",
-    "@atomiqlabs/chain-evm": "github:atomiqlabs/atomiq-chain-evm#ab/signed-txs",
-    "@atomiqlabs/chain-solana": "github:atomiqlabs/atomiq-chain-solana#ab/signed-txs",
-    "@atomiqlabs/chain-starknet": "github:atomiqlabs/atomiq-chain-starknet#ab/signed-txs",
-    "@atomiqlabs/sdk": "github:atomiqlabs/atomiq-sdk#ab/signed-txs",
-    "@atomiqlabs/storage-sqlite": "^4.0.0",
+    "@atomiqlabs/base": "^13.1.15",
+    "@atomiqlabs/chain-evm": "^2.1.12",
+    "@atomiqlabs/chain-solana": "^13.0.11",
+    "@atomiqlabs/chain-starknet": "^8.1.10",
+    "@atomiqlabs/sdk": "^8.3.6",
+    "@atomiqlabs/storage-sqlite": "^5.0.0",
     "@coral-xyz/anchor": "^0.29.0",
     "@solana/spl-token": "^0.3.11",
     "@solana/web3.js": "^1.98.2",
     "cors": "^2.8.5",
     "ethers": "^6.15.0",
     "express": "^5.2.1",
-    "starknet": "^8.5.4"
+    "starknet": "^9.2.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

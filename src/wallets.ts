@@ -4,6 +4,7 @@ import {SolanaKeypairWallet} from "@atomiqlabs/chain-solana";
 import {StarknetKeypairWallet} from "@atomiqlabs/chain-starknet";
 import {BaseWallet, SigningKey, Wallet} from "ethers";
 import {SingleAddressBitcoinWallet} from "@atomiqlabs/sdk";
+import {WIF} from "@scure/btc-signer";
 import {citreaRpc, starknetRpc, swapper} from "./setup";
 
 //Create random signers or load them from files if already generated
@@ -23,7 +24,8 @@ fs.writeFileSync("evm.key", evmKey);
 console.log("Citrea wallet address (transfer CBTC here for TX fees): "+evmWallet.address);
 
 const bitcoinKey = fs.existsSync("bitcoin.key") ? fs.readFileSync("bitcoin.key").toString() : SingleAddressBitcoinWallet.generateRandomPrivateKey();
-const bitcoinWallet = new SingleAddressBitcoinWallet(swapper.bitcoinRpc, swapper.bitcoinNetwork, bitcoinKey);
+const bitcoinPrivKey = WIF().decode(bitcoinKey);
+const bitcoinWallet = new SingleAddressBitcoinWallet(swapper._bitcoinRpc, swapper.Utils.bitcoinNetwork, bitcoinKey);
 fs.writeFileSync("bitcoin.key", bitcoinKey);
 console.log("Bitcoin wallet address (transfer BTC here for TX fees): "+bitcoinWallet.getReceiveAddress());
 
@@ -31,5 +33,6 @@ export {
     solanaWallet,
     starknetWallet,
     evmWallet,
-    bitcoinWallet
+    bitcoinWallet,
+    bitcoinPrivKey
 }

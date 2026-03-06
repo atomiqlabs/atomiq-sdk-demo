@@ -57,8 +57,8 @@ async function main() {
     //The easiest way to execute a swap - pass a btc wallet object and add optional callbacks/options
     const automaticSettlementSuccess = await swap.execute({
         //Pass the address and public key of the wallet
-        address: bitcoinWallet.address,
-        publicKey: Buffer.from(bitcoinWallet.pubkey).toString("hex"),
+        address: bitcoinWallet.getReceiveAddress(),
+        publicKey: bitcoinWallet.getPublicKey(),
         //And a callback function for signing PSBTs, the SDK will pass the psbt as @scure/btc-signer Transaction object,
         // and in string hex and base64 form, so you can easily use it with existing wallet APIs
         signPsbt: (psbt: {psbt, psbtHex: string, psbtBase64: string}, signInputs: number[]) => {

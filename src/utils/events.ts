@@ -20,7 +20,7 @@ async function main() {
 
     //Notifications about swap limits being changed
     swapper.on("swapLimitsChanged", () => {
-        console.log("Swap limits changed", swapper.getSwapBounds());
+        console.log("Swap limits changed", swapper.getSwapLimits(Tokens.BITCOIN.BTCLN, Tokens.STARKNET.STRK));
     });
     //Trigger the prior listener by swapping too little (the LP responds with new minimum/maximum amounts)
     try {

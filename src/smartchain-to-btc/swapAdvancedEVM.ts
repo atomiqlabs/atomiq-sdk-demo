@@ -23,7 +23,7 @@ async function main() {
         "0.00003", //Amount of the BTC to send, you can either input decimal number as string, or base units as bigint
         SwapAmountType.EXACT_OUT, //We want to specify amount in output token (BTC)
         evmWallet.address, //Source address and smart chain signer
-        bitcoinWallet.address, //Destination of the swap
+        bitcoinWallet.getReceiveAddress(), //Destination of the swap
     );
 
     //Relevant data about the created swap
