@@ -36,7 +36,7 @@ const swapper: TypedSwapper<SupportedChains> = Factory.newSwapper({
             chainType: "TESTNET4"
         }
     },
-    bitcoinNetwork: BitcoinNetwork.TESTNET,
+    bitcoinNetwork: BitcoinNetwork.TESTNET3,
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS
     // these lines are not required in browser environment!!!
