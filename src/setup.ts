@@ -1,11 +1,9 @@
 import {BitcoinNetwork, SwapperFactory, TypedSwapper, TypedTokens} from "@atomiqlabs/sdk";
-import {StarknetInitializer, StarknetInitializerType} from "@atomiqlabs/chain-starknet";
-import {SolanaInitializer, SolanaInitializerType} from "@atomiqlabs/chain-solana";
-import {CitreaInitializer, CitreaInitializerType} from "@atomiqlabs/chain-evm";
+import {StarknetInitializer, RpcProviderWithRetries} from "@atomiqlabs/chain-starknet";
+import {SolanaInitializer} from "@atomiqlabs/chain-solana";
+import {CitreaInitializer, JsonRpcProviderWithRetries} from "@atomiqlabs/chain-evm";
 import {Connection} from "@solana/web3.js";
-import {JsonRpcProvider} from "ethers";
 import {SqliteStorageManager, SqliteUnifiedStorage} from "@atomiqlabs/storage-sqlite";
-import {RpcProvider} from "starknet";
 
 //You can bump up the log level with atomiqLogLevel global variable
 // global.atomiqLogLevel = 3;
@@ -18,9 +16,10 @@ const Factory = new SwapperFactory<SupportedChains>(chains);
 const Tokens: TypedTokens<SupportedChains> = Factory.Tokens;
 
 //Initialize RPC connections for Solana & Starknet
+// TODO: Use ConnectionWithRetries instead of Connection after merge
 const solanaRpc = new Connection("https://api.devnet.solana.com", "confirmed");
-const starknetRpc = new RpcProvider({nodeUrl: "https://api.zan.top/public/starknet-sepolia/rpc/v0_9"});
-const citreaRpc = new JsonRpcProvider("https://rpc.testnet.citrea.xyz");
+const starknetRpc = new RpcProviderWithRetries({nodeUrl: "https://api.zan.top/public/starknet-sepolia/rpc/v0_9"});
+const citreaRpc = new JsonRpcProviderWithRetries("https://rpc.testnet.citrea.xyz");
 
 //Create swapper instance
 const swapper: TypedSwapper<SupportedChains> = Factory.newSwapper({
