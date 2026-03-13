@@ -1,7 +1,7 @@
 import {FeeType, FromBTCSwapState, SwapAmountType} from "@atomiqlabs/sdk";
 import {askQuestion} from "../askQuestion";
 import {solanaRpc, swapper, Tokens} from "../setup";
-import {bitcoinWallet, solanaWallet} from "../wallets";
+import {bitcoinPrivKey, bitcoinWallet, solanaWallet} from "../wallets";
 
 //Swap BTC on-chain to Solana assets (uses old, legacy swap protocol)
 async function main() {
@@ -70,11 +70,11 @@ async function main() {
 
     //2a. Obtain the funded PSBT (inputs already added) - ready for signing
     const {psbt, psbtHex, psbtBase64, signInputs} = await swap.getFundedPsbt({
-        address: bitcoinWallet.address,
-        publicKey: Buffer.from(bitcoinWallet.pubkey).toString("hex")
+        address: bitcoinWallet.getReceiveAddress(),
+        publicKey: bitcoinWallet.getPublicKey()
     });
     for(let signIdx of signInputs) {
-        psbt.signIdx(bitcoinWallet.privKey, signIdx); //Or pass it to external signer
+        psbt.signIdx(bitcoinPrivKey, signIdx); //Or pass it to external signer
     }
     const bitcoinTxId = await swap.submitPsbt(psbt);
     console.log(`Bitcoin transaction sent: ${bitcoinTxId}`)

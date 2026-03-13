@@ -14,7 +14,7 @@ async function main() {
     const cbtcBalance = await swapper.Utils.getSpendableBalance(evmWallet.address, Tokens.CITREA.CBTC);
     console.log("Citrea signer balance: "+cbtcBalance);
     //Spendable balance of the bitcoin wallet - here we also need to specify the destination chain (as there are different swap protocols available with different on-chain footprints)
-    const {balance: btcBalance, feeRate: btcFeeRate} = await swapper.Utils.getBitcoinSpendableBalance(bitcoinWallet.address, "SOLANA");
+    const {balance: btcBalance, feeRate: btcFeeRate} = await swapper.Utils.getBitcoinSpendableBalance(bitcoinWallet.getReceiveAddress(), "SOLANA");
     console.log("Bitcoin signer balance: "+btcBalance);
 }
 main();

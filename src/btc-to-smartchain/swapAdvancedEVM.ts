@@ -5,7 +5,7 @@ import {
 } from "@atomiqlabs/sdk";
 import {askQuestion} from "../askQuestion";
 import {swapper, Tokens} from "../setup";
-import {bitcoinWallet, evmWallet} from "../wallets";
+import {bitcoinPrivKey, bitcoinWallet, evmWallet} from "../wallets";
 
 //Swap of on-chain BTC -> EVM assets (uses new swap protocol - not available on Solana)
 async function main() {
@@ -59,10 +59,10 @@ async function main() {
 
     //1a. Obtain the funded PSBT (input already added) - ready for signing
     const {psbt, psbtHex, psbtBase64, signInputs} = await swap.getFundedPsbt({
-        address: bitcoinWallet.address,
-        publicKey: Buffer.from(bitcoinWallet.pubkey).toString("hex")
+        address: bitcoinWallet.getReceiveAddress(),
+        publicKey: bitcoinWallet.getPublicKey()
     });
-    for(let signIdx of signInputs) psbt.signIdx(bitcoinWallet.privKey, signIdx); //Or pass it to external signer
+    for(let signIdx of signInputs) psbt.signIdx(bitcoinPrivKey, signIdx); //Or pass it to external signer
     const bitcoinTxId = await swap.submitPsbt(psbt);
 
     //1b. Or obtain raw PSBT to which inputs still need to be added
