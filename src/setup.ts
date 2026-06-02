@@ -1,6 +1,6 @@
 import {BitcoinNetwork, SwapperFactory, TypedSwapper, TypedTokens} from "@atomiqlabs/sdk";
 import {StarknetInitializer, RpcProviderWithRetries} from "@atomiqlabs/chain-starknet";
-import {SolanaInitializer} from "@atomiqlabs/chain-solana";
+import {SolanaInitializerV2} from "@atomiqlabs/chain-solana";
 import {CitreaInitializer, JsonRpcProviderWithRetries} from "@atomiqlabs/chain-evm";
 import {Connection} from "@solana/web3.js";
 import {SqliteStorageManager, SqliteUnifiedStorage} from "@atomiqlabs/storage-sqlite";
@@ -9,7 +9,7 @@ import {SqliteStorageManager, SqliteUnifiedStorage} from "@atomiqlabs/storage-sq
 // global.atomiqLogLevel = 3;
 
 //Create swapper factory, you can initialize it also with just a single chain (no need to always use both Solana & Starknet)
-const chains = [StarknetInitializer, SolanaInitializer, CitreaInitializer] as const;
+const chains = [StarknetInitializer, SolanaInitializerV2, CitreaInitializer] as const;
 type SupportedChains = typeof chains;
 
 const Factory = new SwapperFactory<SupportedChains>(chains);
@@ -35,7 +35,7 @@ const swapper: TypedSwapper<SupportedChains> = Factory.newSwapper({
             chainType: "TESTNET4"
         }
     },
-    bitcoinNetwork: BitcoinNetwork.TESTNET3,
+    bitcoinNetwork: BitcoinNetwork.TESTNET4,
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS
     // these lines are not required in browser environment!!!

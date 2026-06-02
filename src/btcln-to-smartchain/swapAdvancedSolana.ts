@@ -1,21 +1,15 @@
-import {swapper, Tokens} from "../setup";
-import {FeeType, FromBTCLNSwapState, SwapAmountType} from "@atomiqlabs/sdk";
+import {solanaRpc, swapper, Tokens} from "../setup";
+import {FeeType, FromBTCLNAutoSwapState, SwapAmountType} from "@atomiqlabs/sdk";
 import {solanaWallet} from "../wallets";
-import {askQuestion} from "../askQuestion";
 
 
-//Swap BTC L2 lightning network to Solana assets (uses old, legacy swap protocol)
-//This uses the LNURL-withdraw link provided in the arguments to fund the swap on the lightning network side
+//Swap of on-chain BTC -> EVM assets (uses new swap protocol - not available on Solana)
 async function main() {
-    //Load the lightning network invoice from the command line argument
-    const lnurlWithdraw = process.argv[2];
-    //We can also check that it is a valid LNNURL-pay link
-    if(!swapper.Utils.isValidLNURL(lnurlWithdraw)) throw new Error("Invalid LNURL in cmd parameters");
-
     //Initialize the swapper instance (you should do this just once when your app starts up)
     await swapper.init();
 
     const dstToken = Tokens.SOLANA.SOL;
+
     //We can retrieve swap limits before we execute the swap,
     // NOTE that only swap limits denominated in BTC are immediately available
     const swapLimits = swapper.getSwapLimits(Tokens.BITCOIN.BTCLN, dstToken);
@@ -26,15 +20,17 @@ async function main() {
     const swap = await swapper.swap(
         Tokens.BITCOIN.BTCLN, //Swap from BTC-LN
         dstToken, //Into specified destination token
-        "0.00001", //1000 sats (0.00001 BTC)
+        3000n, //3000 sats (0.00003 BTC)
         SwapAmountType.EXACT_IN, //Whether we define an input or output amount
-        lnurlWithdraw, //Source - LNURL-withdraw link
+        undefined, //Source address for the swap, not used for swaps from BTC-LN
         solanaWallet.publicKey.toString(), //Destination address
+        {
+            gasAmount: 0n //We can also request a gas drop on the destination chain
+        }
     );
 
     //Relevant data about the created swap
     console.log("Swap created "+swap.getId()+":");
-    console.log("   Estimated transaction fee: "+await swap.getSmartChainNetworkFee()); //Estimate of the on-chain gas fee paid
     console.log("   Input: "+swap.getInputWithoutFee()); //Input amount excluding fees
     console.log("   Fees: "+swap.getFee().amountInSrcToken); //Fees paid on the output
     for(let fee of swap.getFeeBreakdown()) {
@@ -42,41 +38,50 @@ async function main() {
     }
     console.log("   Input with fees: "+swap.getInput()); //Total amount paid including fees
     console.log("   Output: "+swap.getOutput()); //Output amount
+    console.log("   Gas drop output: "+swap.getGasDropOutput()); //Output amount
     console.log("   Quote expiry: "+swap.getQuoteExpiry()+" (in "+(swap.getQuoteExpiry()-Date.now())/1000+" seconds)"); //Quote expiration
     console.log("   Price:"); //Pricing information
     console.log("       - swap: "+swap.getPriceInfo().swapPrice); //Price of the current swap (excluding fees)
     console.log("       - market: "+swap.getPriceInfo().marketPrice); //Current market price
     console.log("       - difference: "+swap.getPriceInfo().difference); //Difference between the swap price & current market price
-    console.log("   Refundable deposit: "+swap.getSecurityDeposit()); //Refundable deposit on the destination chain, this will be taken when user commits and refunded when user claims
     console.log("   Address: "+swap.getAddress()); //Address/lightning network invoice to pay
     console.log("   Hyperlink: "+swap.getHyperlink()); //Hyperlink representation of the address/lightning network invoice
 
+    console.log("Waiting for the manual payment of the lightning network invoice (pay it from your lightning network wallet)...");
+
     //Add a listener for swap state changes (optional)
     swap.events.on("swapState", (swap) => {
-        console.log("Swap state changed: ", FromBTCLNSwapState[swap.getState()]);
+        console.log("Swap state changed: ", FromBTCLNAutoSwapState[swap.getState()]);
     });
 
-    await askQuestion("Press ENTER to execute the swap...");
+    //1. Pay the invoice as specified in `swap.getAddress()` from an external LN wallet
+    console.log("Pay the provided lightning network invoice from external lightning network wallet: ", swap.getAddress());
 
-    await swap.execute(
-        solanaWallet,
-        undefined, //No need to specify any wallet, as the LNURL-withdraw link is used as a source
-        {
-            onSourceTransactionReceived: (sourceLnPaymentHash: string) => {
-                console.log(`Lightning network transaction received by the LP: ${sourceLnPaymentHash}`);
-            },
-            onDestinationCommitSent: (destinationCommitTxId: string) => {
-                console.log(`Commit transaction sent (HTLC creation) txId: ${destinationCommitTxId}`);
-            },
-            onDestinationClaimSent: (destinationClaimTxId: string) => {
-                console.log(`Claim transaction sent (HTLC claiming) txId: ${destinationClaimTxId}`);
-            },
-            onSwapSettled: (destinationClaimTxId: string) => {
-                console.log(`Swap settled, destination txId: ${destinationClaimTxId}`);
-            }
+    //2. Start listening to incoming lightning network payment
+    const success = await swap.waitForPayment();
+    if(!success) {
+        console.log("Lightning network payment not received in time and quote expired!");
+        return;
+    }
+
+    //3. Wait for the swap to be automatically settled
+    const automaticSettlementSuccess = await swap.waitTillClaimed(60);
+
+    //In case the automatic swap settlement fails, we can settle it manually using the wallet of the destination chain
+    if(!automaticSettlementSuccess) {
+        console.log("Swap not claimed by watchtowers, claiming manually!");
+        //4. In case the swap is not automatically settled, we can settle manually by sending claim transaction on the destination
+        //a. you can either use a simple swap.claim()
+        // await swap.claim(solanaWallet);
+        //b. or you can obtain the required transactions and sign & broadcast them manually
+        const txsClaim = await swap.txsClaim(solanaWallet);
+        for(let tx of txsClaim) {
+            tx.tx.recentBlockhash ??= (await solanaRpc.getLatestBlockhash()).blockhash;
+            const signedTx = await solanaWallet.signTransaction(tx.tx);
+            if(tx.signers.length>0) signedTx.sign(...tx.signers);
+            await solanaRpc.sendRawTransaction(signedTx.serialize());
         }
-    );
-
+    }
     console.log("Successfully claimed!");
 
     //Stops the swapper instance, no more swaps can happen
