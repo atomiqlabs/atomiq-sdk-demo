@@ -72,6 +72,10 @@ Uses the same protocol for all supported chains, hence the flow is the same
 - advanced Starknet implementation (manually signing transactions and going through swap steps): [/src/smartchain-to-btcln/swapAdvancedStarknet.ts](/src/smartchain-to-btcln/swapAdvancedStarknet.ts)
 - advanced Solana implementation (manually signing transactions and going through swap steps): [/src/smartchain-to-btcln/swapAdvancedSolana.ts](/src/smartchain-to-btcln/swapAdvancedSolana.ts)
 
+### Deposit address
+
+An example implementation of a static bitcoin deposit address, which periodically checks balance in a given bitcoin address and automatically swaps any BTC deposited into the pre-defined destination token using the new BTC -> Smart chain swap protocol. Can be found at [/src/btc-deposit-address/btcAutoSwapAddress.ts](/src/btc-deposit-address/btcAutoSwapAddress.ts)
+
 ### Solana pay
 
 An example of using the atomiq SDK with Solana pay, this allows you to generate a solana pay deeplink with embbeded lightning invoice, that will automatically create a Solana -> BTC-LN swap when scanned, such that user can authorize it in the Solana wallet. Can be found at [/src/solana-pay/quickSwapProxyToBtcLnWithExpress.ts](/src/solana-pay/quickSwapProxyToBtcLnWithExpress.ts)

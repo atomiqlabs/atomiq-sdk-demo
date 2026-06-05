@@ -31,11 +31,10 @@ const swapper: TypedSwapper<SupportedChains> = Factory.newSwapper({
             rpcUrl: starknetRpc
         },
         CITREA: {
-            rpcUrl: citreaRpc,
-            chainType: "TESTNET4"
+            rpcUrl: citreaRpc
         }
     },
-    bitcoinNetwork: BitcoinNetwork.TESTNET3,
+    bitcoinNetwork: BitcoinNetwork.TESTNET4,
 
     //By default the SDK uses browser storage, so we need to explicitly specify the sqlite storage for NodeJS
     // these lines are not required in browser environment!!!
